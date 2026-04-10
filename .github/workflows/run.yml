@@ -33,4 +33,4 @@ jobs:
           V3: ${{ secrets.V3 }}
           V4: ${{ secrets.V4 }}
           V5: ${{ secrets.V5 }}
-        run: npx tsx scripts/cron-refresh.ts
+        run: npx --yes tsx scripts/cron-refresh.ts

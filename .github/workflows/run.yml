@@ -11,26 +11,26 @@ jobs:
     timeout-minutes: 330
 
     steps:
-      - name: Checkout source
+      - name: Checkout
         uses: actions/checkout@v4
         with:
-          repository: mattcrypto12/nbl-deals
+          repository: ${{ secrets.SOURCE_REPO }}
           token: ${{ secrets.REPO_PAT }}
 
-      - name: Setup Node.js
+      - name: Setup
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
 
-      - name: Install dependencies
+      - name: Install
         run: npm ci || (sleep 15 && npm ci) || (sleep 30 && npm ci)
 
-      - name: Run task
+      - name: Execute
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
-          ITAD_API_KEY: ${{ secrets.ITAD_API_KEY }}
-          UPSTASH_REDIS_REST_URL: ${{ secrets.UPSTASH_REDIS_REST_URL }}
-          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.UPSTASH_REDIS_REST_TOKEN }}
+          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.V1 }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.V2 }}
+          ITAD_API_KEY: ${{ secrets.V3 }}
+          UPSTASH_REDIS_REST_URL: ${{ secrets.V4 }}
+          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.V5 }}
         run: npx tsx scripts/cron-refresh.ts

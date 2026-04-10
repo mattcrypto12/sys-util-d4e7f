@@ -28,9 +28,9 @@ jobs:
 
       - name: Execute
         env:
-          NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.V1 }}
-          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.V2 }}
-          ITAD_API_KEY: ${{ secrets.V3 }}
-          UPSTASH_REDIS_REST_URL: ${{ secrets.V4 }}
-          UPSTASH_REDIS_REST_TOKEN: ${{ secrets.V5 }}
+          V1: ${{ secrets.V1 }}
+          V2: ${{ secrets.V2 }}
+          V3: ${{ secrets.V3 }}
+          V4: ${{ secrets.V4 }}
+          V5: ${{ secrets.V5 }}
         run: npx tsx scripts/cron-refresh.ts

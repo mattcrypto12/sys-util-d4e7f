@@ -1,0 +1,72 @@
+name: Refresh Part
+
+# Reusable building block: checks out the private source repo and drives the
+# paginated cron-refresh.ts in a loop until the cycle completes (script exits 64)
+# or this job's wall-clock budget is reached, then hands off to the next job.
+on:
+  workflow_call:
+    inputs:
+      continue_only:
+        description: 'If true, no-op when there is no in-progress cycle (do not start a new one). Used by the 2nd+ jobs in the chain.'
+        type: boolean
+        default: false
+      budget_seconds:
+        description: 'Wall-clock budget for starting new pages before handing off to the next job.'
+        type: number
+        default: 5400
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 110
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SOURCE_REPO }}
+          token: ${{ secrets.REPO_PAT }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci || (sleep 15 && npm ci) || (sleep 30 && npm ci)
+
+      - name: Refresh (paginated loop)
+        env:
+          V1: ${{ secrets.V1 }}
+          V2: ${{ secrets.V2 }}
+          V3: ${{ secrets.V3 }}
+          V4: ${{ secrets.V4 }}
+          V5: ${{ secrets.V5 }}
+          CRON_CONTINUE_ONLY: ${{ inputs.continue_only && '1' || '' }}
+          BUDGET_SECONDS: ${{ inputs.budget_seconds }}
+        run: |
+          # Manage exit codes manually — the paginated script uses exit 64 to
+          # signal "cycle complete", which must NOT fail the job under `set -e`.
+          set +e
+          start=$SECONDS
+          page=0
+          while true; do
+            elapsed=$(( SECONDS - start ))
+            if [ "$elapsed" -ge "$BUDGET_SECONDS" ]; then
+              echo "::notice::Budget ${BUDGET_SECONDS}s reached after ${page} page(s); handing off to the next job."
+              exit 0
+            fi
+            page=$(( page + 1 ))
+            echo "----- invocation #${page} (elapsed ${elapsed}s) -----"
+            npx --yes tsx scripts/cron-refresh.ts
+            rc=$?
+            if [ "$rc" -eq 64 ]; then
+              echo "::notice::Full cycle complete after ${page} invocation(s)."
+              exit 0
+            fi
+            if [ "$rc" -ne 0 ]; then
+              echo "::error::cron-refresh.ts exited ${rc}; failing job. The Redis offset persists, so the next run resumes where this left off."
+              exit "$rc"
+            fi
+            sleep 2
+          done

@@ -1,10 +1,15 @@
-name: Scheduled Refresh
+name: Daily Refresh
 
 # Daily deal-data refresh for the private source repo. The work is split into
 # three sequential jobs so no single job approaches GitHub's 6h job limit. Each
 # job continues from a shared Redis offset (cron:gh:full:offset), so the cycle
 # picks up exactly where the previous job stopped. If a cycle needs more than
 # the combined budget, the offset persists and the next scheduled run resumes it.
+#
+# Why this file replaced scheduled-refresh.yml (Oct 2026): GitHub disables a
+# repo's scheduled workflows after 60 days without a commit, and the old file
+# had been sitting in `disabled_inactivity` since Aug 31. A workflow at a new
+# path is enabled by default. keepalive.yml now prevents a repeat.
 on:
   schedule:
     - cron: '0 6 * * *'

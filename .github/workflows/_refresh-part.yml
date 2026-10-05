@@ -18,7 +18,9 @@ on:
 jobs:
   refresh:
     runs-on: ubuntu-latest
-    timeout-minutes: 110
+    # Budget (90 min) + the last invocation it starts, which may be the cycle
+    # finale (up to 15 min page + 60 min completion watchdog) + install.
+    timeout-minutes: 175
     steps:
       - name: Checkout source repo
         uses: actions/checkout@v4
@@ -50,6 +52,7 @@ jobs:
           set +e
           start=$SECONDS
           page=0
+          fails=0
           while true; do
             elapsed=$(( SECONDS - start ))
             if [ "$elapsed" -ge "$BUDGET_SECONDS" ]; then
@@ -65,8 +68,19 @@ jobs:
               exit 0
             fi
             if [ "$rc" -ne 0 ]; then
-              echo "::error::cron-refresh.ts exited ${rc}; failing job. The Redis offset persists, so the next run resumes where this left off."
-              exit "$rc"
+              # The script never touches the Redis offset on failure, so a
+              # retry simply re-fetches the same page. Transient ITAD/Supabase
+              # blips used to fail the whole job (and skip parts 2 and 3 for
+              # the day); now they cost a minute.
+              fails=$(( fails + 1 ))
+              if [ "$fails" -ge 3 ]; then
+                echo "::error::cron-refresh.ts exited ${rc} three times in a row; failing job. The Redis offset persists, so the next run resumes where this left off."
+                exit "$rc"
+              fi
+              echo "::warning::cron-refresh.ts exited ${rc} (failure ${fails}/3); retrying the same page in 60s."
+              sleep 60
+              continue
             fi
+            fails=0
             sleep 2
           done

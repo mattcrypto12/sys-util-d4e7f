@@ -35,7 +35,11 @@ jobs:
           cache: 'npm'
 
       - name: Install
-        run: npm ci || (sleep 15 && npm ci) || (sleep 30 && npm ci)
+        # `npm ci` refuses to run when package.json and the lockfile drift
+        # (Aug 17-22 2026: six straight nightly failures at this step after a
+        # dependency was committed with a stale lockfile). For a cron, fresh
+        # data beats lockfile strictness: fall back to a resolving install.
+        run: npm ci || (sleep 15 && npm ci) || npm install --no-audit --no-fund
 
       - name: Refresh (paginated loop)
         env:

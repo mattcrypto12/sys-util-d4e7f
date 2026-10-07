@@ -1,7 +1,7 @@
 name: Daily Refresh
 
 # Daily deal-data refresh for the private source repo. The work is split into
-# five sequential jobs (~450 min/day; this repo is public, so
+# seven sequential jobs (~630 min/day; this repo is public, so
 # the minutes are free) so no single job approaches GitHub's 6h job limit. Each
 # job continues from a shared Redis offset (cron:gh:full:offset), so the cycle
 # picks up exactly where the previous job stopped. If a cycle needs more than
@@ -55,6 +55,22 @@ jobs:
 
   part-5:
     needs: part-4
+    uses: ./.github/workflows/_refresh-part.yml
+    secrets: inherit
+    with:
+      continue_only: true
+      budget_seconds: 5400   # ~90 min
+
+  part-6:
+    needs: part-5
+    uses: ./.github/workflows/_refresh-part.yml
+    secrets: inherit
+    with:
+      continue_only: true
+      budget_seconds: 5400   # ~90 min
+
+  part-7:
+    needs: part-6
     uses: ./.github/workflows/_refresh-part.yml
     secrets: inherit
     with:

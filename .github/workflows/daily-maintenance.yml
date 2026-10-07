@@ -1,0 +1,46 @@
+name: Daily Maintenance
+
+# Verified expiry of stale deals + Steam top-seller ranks + cache rewarm, on a
+# clock. The full feed cycle (daily-refresh.yml) takes several days at ITAD's
+# rate limits, and these used to run only when a cycle finished — so ended
+# sales stayed "live" for weeks and popularity froze. Runs before the daily
+# refresh; separate concurrency group so the two never block each other.
+on:
+  schedule:
+    - cron: '30 2 * * *'
+  workflow_dispatch:
+
+concurrency:
+  group: daily-maintenance
+  cancel-in-progress: false
+
+jobs:
+  maintenance:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - name: Checkout source repo
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ secrets.SOURCE_REPO }}
+          token: ${{ secrets.REPO_PAT }}
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci || (sleep 15 && npm ci) || npm install --no-audit --no-fund
+
+      - name: Maintenance (expiry + popularity + cache)
+        env:
+          V1: ${{ secrets.V1 }}
+          V2: ${{ secrets.V2 }}
+          V3: ${{ secrets.V3 }}
+          V4: ${{ secrets.V4 }}
+          V5: ${{ secrets.V5 }}
+          STALE_DAYS: '7'
+          BUDGET_SECONDS: '6000'   # ~100 min of expiry passes
+        run: npx --yes tsx scripts/cron-maintenance.ts
